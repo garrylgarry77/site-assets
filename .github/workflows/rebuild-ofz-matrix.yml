@@ -1,0 +1,49 @@
+name: Rebuild OFZ matrices
+
+on:
+  push:
+    paths:
+      - 'ofz-analysis/data/**.csv'
+      - 'ofz-analysis/scripts/**.py'
+      - 'ofz-analysis/requirements.txt'
+      - '.github/workflows/rebuild-ofz-matrix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r ofz-analysis/requirements.txt
+
+      - name: Build auction matrix
+        run: python ofz-analysis/scripts/build_auction_matrix.py
+
+      - name: Build rate matrix
+        run: python ofz-analysis/scripts/build_rate_matrix.py
+
+      - name: Run backtest
+        run: python ofz-analysis/scripts/strategy_backtest.py
+
+      - name: Commit refreshed outputs
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ofz-analysis/output
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: rebuild OFZ matrices [skip ci]"
+            git push
+          fi
